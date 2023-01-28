@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 
-# ----- Building Block / Layer -----
+# ----- Block / Layer -----
 class Conv3DBlock(nn.Module):
     """Conv3D + LeakyReLU(negative_slope=0.1)"""
     def __init__(self, channel_in: int, channel_out: int) -> None:
