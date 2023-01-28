@@ -10,7 +10,9 @@ class Conv3DBlock(nn.Module):
         super().__init__()
 
         self._layer = nn.Sequential(
-            nn.Conv3d(channel_in, channel_out, kernel_size=3, stride=1, padding='same'),
+            nn.Conv3d(
+                channel_in, channel_out, kernel_size=3, stride=1, padding='same',
+            ),
             nn.LeakyReLU(negative_slope=0.1, inplace=True),
         )
     
@@ -32,14 +34,14 @@ class PlainCNN(nn.Module):
         super(PlainCNN, self).__init__()
 
         self._block_in = Conv3DBlock(1, 64)
-        self._block_middle_list = nn.ModuleList(Conv3DBlock(64, 64) for i in range(10))
+        self._block_middle_iter = nn.ModuleList(Conv3DBlock(64, 64) for i in range(10))
         self._block_out = Conv3DBlock(64, 1)
     
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         """Returns the output by forward calculation."""
         residual = input.clone()
 
-        for block in [self._block_in, *self._block_middle_list, self._block_out]:
+        for block in [self._block_in, *self._block_middle_iter, self._block_out]:
             residual = block(residual)
         
         return input + residual
