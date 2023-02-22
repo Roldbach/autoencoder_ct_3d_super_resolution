@@ -128,5 +128,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Manual Test File
+# Temp
 manual_test.py
+record/
+temp/
+weight/
+dataset/
