@@ -1,7 +1,7 @@
 # Is Autoencoder Truly Applicable for 3D CT Super-Resolution?
 
 <p align="center">
-  <img src="https://github.com/Roldbach/Autoencoder-CT-SISR-3D/blob/main/image/result.pdf" />
+  <img src="https://github.com/Roldbach/Autoencoder-CT-SISR-3D/blob/main/image/result.png" />
 </p> 
 
 > **Is Autoencoder Truly Applicable for 3D CT Super-Resolution?**<br>
