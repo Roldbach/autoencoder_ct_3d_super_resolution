@@ -1,7 +1,7 @@
 # Is Autoencoder Truly Applicable for 3D CT Super-Resolution?
 
-<p align="center">
-  <img src="https://github.com/Roldbach/Autoencoder-CT-SISR-3D/blob/main/image/result.png" />
+<p align='center'>
+  <img src='./image/result.png'/>
 </p> 
 
 > **Is Autoencoder Truly Applicable for 3D CT Super-Resolution?**<br>
@@ -34,6 +34,7 @@ This repository contains the official PyTorch Implementation of paper: Is
 Autoencoder Truly Applicable for 3D CT Super-Resolution? We have provided our
 full training and inference codes and pre-trained models as well. Users could
 use this repository to:
+
 - Train models on self-prepared datasets
 - Test models on self-prepared dataset
 - Test pre-trained models on sample data
@@ -49,4 +50,21 @@ conda activate 3DSuperResolution
 ```
 
 ### Dataset
-Follow instructions in ![dataset](./data/dataset.py) to add new dataset.
+To add new dataset, follow detailed instructions in [dataset](./data/dataset.py).
+
+
+### Model
+
+<p align='center'>
+  <img src='./image/model_all.png'/>
+</p> 
+
+Users can directly use the following models:
+
+  - PlainCNN: A cascade of (Conv3D + LeakyReLU) blocks + global residual
+    learning
+  - AE_Maxpool: Use PlainCNN as baseline model and Maxpooling as downsampling
+    method.
+  - AE_Conv: Use PlainCNN as baseline model and strided Conv3D as downsampling
+    method.
+  - UNet: A simplified 3D UNet implementation for fair comparisons.
