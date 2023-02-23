@@ -32,11 +32,11 @@
 ## Description
 This repository contains the official PyTorch Implementation of paper: Is
 Autoencoder Truly Applicable for 3D CT Super-Resolution? We have provided our
-full training and inference codes and pre-trained models as well. Users can use
-this repository to:
-- Train models using self-prepared dataset
-- Test models using self-prepared dataset
-- Test pre-trained models using sample data
+full training and inference codes and pre-trained models as well. Users could
+use this repository to:
+- Train models on self-prepared datasets
+- Test models on self-prepared dataset
+- Test pre-trained models on sample data
 
 
 ## Get Started
@@ -48,6 +48,5 @@ conda env create -f environment.yml
 conda activate 3DSuperResolution
 ```
 
-### Training
-#### Dataset
-Users could
+### Dataset
+Follow instructions in ![dataset](./data/dataset.py) to add new dataset.
