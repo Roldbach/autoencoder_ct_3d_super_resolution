@@ -50,7 +50,9 @@ conda activate 3DSuperResolution
 ```
 
 ### Dataset
-To add new dataset, follow detailed instructions in [dataset](./data/dataset.py).
+To use self-prepared dataset, fill in the corresponding *set_up_xxx_dataset*
+function in [setup_utils.py]('./utils/setup_utils.py'). <br>
+**No pre-processing required during data loading!!!**
 
 
 ### Model
@@ -68,3 +70,40 @@ Users can directly use the following models:
   - AE_Conv: Use PlainCNN as baseline model and strided Conv3D as downsampling
     method.
   - UNet: A simplified 3D UNet implementation for fair comparisons.
+
+
+### Train models on self-prepared datasets
+- Fill in the *set_up_train_dataset* function in
+[setup_utils.py]('./utils/setup_utils.py').
+- Go to [train.py]('./train.py') and specify the following settings:
+
+    - model_name <br>
+      A **str** that specifies the name of the model used in the experiment,
+      choose from **PlainCNN / AE_Maxpool / AE_Conv / UNet**.
+    - upsample_name <br> 
+      A **str** that specifies the name of the upsampling method used in
+      low-resolution data generation, choose from
+      **trilinear_interpolation / same_insertion**.
+    - scale_factor <br>
+      An **int** that specifies the scale_factor of downsampling/upsampling in
+      the z-axis , **2 / 4 / 8** used in the paper.
+    - weight_path <br>
+      A **str** that specifies the file path to store the model weight ended
+      with **.pth**.
+    - record_path <br>
+      A **str** that specifies the file path to store the record of experiment
+      ended with **.csv**.
+    - require_loading <br>
+      A **bool** that specifies whether to continue training from the last
+      experiment, otherwise restart training from the scratch.
+    - window <br>
+      A **tuple[float|None, float|None]** that specifies the range of pixel
+      values interested.
+    - patch_size <br>
+      An **int** that specifies the size of cubic patches.
+    - epoch <br>
+     An **int** that specifies the total number of iterations during training.
+    - batch_size <br>
+      An **int** that specifies the number of data in one batch.
+    - learning_rate <br>
+      A **float** that specifies the step size in gradient updating.
