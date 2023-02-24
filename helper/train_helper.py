@@ -22,6 +22,7 @@ class BatchExtractor:
     when images are patched and can not be directly used in
     batch operations.
     """
+
     def __init__(
         self,
         input: torch.Tensor,
@@ -70,6 +71,7 @@ class BatchLossAccumulator:
     A tool to accumulate the loss for all batches and
     compute the average value as the final epoch loss.
     """
+
     def __init__(self) -> None:
         """Initialises BatchLossAccumulator."""
         self._count = 0
