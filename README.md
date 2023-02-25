@@ -37,12 +37,12 @@ use this repository to:
 
 - Train models on self-prepared datasets
 - Test models on self-prepared dataset
-- Test pre-trained models on sample data
 
 
 ## Get Started
 ### Install Virtual Environment
-To install the environment, clone the repository and run the following commands:
+To install the environment, please clone the repository and run the following
+commands:
 
 ```shell script
 conda env create -f environment.yml
@@ -50,9 +50,17 @@ conda activate 3DSuperResolution
 ```
 
 ### Dataset
-To use self-prepared dataset, fill in the corresponding *set_up_xxx_dataset*
-function in [setup_utils.py]('./utils/setup_utils.py'). <br>
-**No pre-processing required during data loading!!!**
+To use self-prepared dataset, please provide a dataset loading file and modify
+[dataset_configuration.py]('./configuration/dataset_configuration.py'). This
+loading file should contains the following columns:
+
+- `path`: A **str** that specifies the file path of loading file ending with
+  **.csv**.
+- `tag`: A **str** that specifies the subset, one of `train`/`validation`/`test`.
+
+
+We have also provided a [sample loading file]('./dataset/sample_loading_file.csv')
+as demonstration.
 
 
 ### Model
@@ -63,13 +71,13 @@ function in [setup_utils.py]('./utils/setup_utils.py'). <br>
 
 Users can directly use the following models:
 
-  - PlainCNN: A cascade of (Conv3D + LeakyReLU) blocks + global residual
+  - `PlainCNN`: A cascade of (Conv3D + LeakyReLU) blocks + global residual
     learning
-  - AE_Maxpool: Use PlainCNN as baseline model and Maxpooling as downsampling
+  - `AE_Maxpool`: Use PlainCNN as baseline model and Maxpooling as downsampling
     method.
-  - AE_Conv: Use PlainCNN as baseline model and strided Conv3D as downsampling
+  - `AE_Conv`: Use PlainCNN as baseline model and strided Conv3D as downsampling
     method.
-  - UNet: A simplified 3D UNet implementation for fair comparisons.
+  - `UNet`: A simplified 3D UNet implementation for fair comparisons.
 
 
 ### Train models on self-prepared datasets
