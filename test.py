@@ -1,54 +1,35 @@
 """Script for model testing.
 
-This is the main script used for model testing.
+This is the script used for model training. To test a
+model, please specify the following experiment settings:
+    (1) model_name: str, one of PlainCNN/AE_Maxpool/AE_Conv/
+        UNet.
+    (2) upsample_name: str, one of trilinear_interpolation/
+        same_insertion.
+    (3) weight_file_path: str, the file that stores
+        model weights.
+    (4) scale_factor: int, the scale factor of downsampling
+        /upsampling in the z-axis.
+    (5) window: tuple[float|None, float|None], the range
+        of HU values interested.
 """
-from configuration import device_configuration
 from helper import test_helper
-from utils import io_utils
-from utils import setup_utils
 
-import matplotlib.pyplot as plt
-
-
-def plotImage(image, name, path):
-    figure=plt.figure(dpi=300)
-    plt.grid(False)
-    plt.axis("off")
-    plt.imshow(image,cmap=plt.cm.gray)
-    figure.savefig(path+"/"+name+".png")
 
 if __name__ == '__main__':
+    # Clean this
     model_name = 'PlainCNN'
     upsample_name = 'trilinear_interpolation'
     scale_factor = 8
     weight_path = f'./weight/{model_name}_{upsample_name}_x{scale_factor}.pth'
     window = (-1024, 1476)
 
-    test_data_loader = setup_utils.set_up_data_loader('test', shuffle=False)
-    model = setup_utils.set_up_model(model_name, device_configuration.TEST_DEVICE)
-    model = io_utils.read_weight(weight_path, model)
+    delegate = test_helper.TestDelegate(
+        model_name = model_name,
+        upsample_name = upsample_name,
+        scale_factor = scale_factor,
+        weight_file_path = weight_path,
+        window = (-1024, 1476),
+    )
 
-    input_vs_label, prediction_vs_label = [], []
-
-    count = 0
-    model.eval()
-    for input, label in test_data_loader:
-        input = test_helper.pre_process_input(
-            input, window, scale_factor, upsample_name)
-        label = test_helper.pre_process_label(label, window, scale_factor)
-
-        prediction = model(input.to(device_configuration.TEST_DEVICE))
-
-        input = test_helper.post_process_image(input)
-        prediction = test_helper.post_process_image(prediction)
-        label = test_helper.post_process_image(label)
-
-        input_vs_label.append(test_helper.evaluate(input, label))
-        prediction_vs_label.append(test_helper.evaluate(prediction, label))
-
-        if count == 0:
-            plotImage(input[:, :, 100], f'input_{count}', '.')
-            plotImage(prediction[:, :, 100], f'prediction_{count}', '.')
-            plotImage(label[:, :, 100], f'label_{count}', '.')
-
-    test_helper.report_evaluation_result(input_vs_label, prediction_vs_label)
+    test_helper.test(delegate)
