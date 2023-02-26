@@ -3,16 +3,185 @@
 This module contains classes and functions that can
 facilitate the model training/validation.
 """
-import os
-import shutil
+import time
 
 import pandas as pd
 import torch
 from torch import nn
+from torch.utils.data import DataLoader
 
 from configuration import device_configuration
+from dataset.AapmMayoDataset import AapmMayoDataset
+from model.Autoencoder import Autoencoder_Conv
+from model.Autoencoder import Autoencoder_Maxpool
+from model.PlainCNN import PlainCNN
+from model.UNet import UNet
 from utils import image_utils
+from utils import io_utils
+from utils import path_utils
 
+
+class TrainDelegate:
+    """A delegate designed for model training only.
+
+    A delegate that is specifically designed for model
+    training. It contains all components required and 
+    some convenient functions that fascilitate the training
+    experiment.
+    """
+
+    def __init__(
+        self,
+        model_name: str,
+        upsample_name: str,
+        output_directory_path: str,
+        is_resuming: bool,
+        epoch: int,
+        batch_size: int,
+        patch_size: int,
+        scale_factor: int,
+        learning_rate: float,
+        window: tuple[float|None, float|None],
+    ) -> None:
+        """Initialises TrainDelegate."""
+        self._epoch = epoch
+        self._batch_size = batch_size
+        self._patch_size = patch_size
+        self._scale_factor = scale_factor
+        self._window = window
+        self._upsample_name = upsample_name
+        self._train_batch_loss_accumulator = None
+        self._validation_batch_loss_accumulator = None
+
+        self._weight_file_path = self._construct_weight_file_path(
+            model_name, upsample_name, output_directory_path, scale_factor)
+        self._record_file_path = self._construct_record_file_path(
+            output_directory_path)
+        self._train_data_loader = self._construct_train_data_loader()
+        self._validation_data_loader = self._construct_validation_data_loader()
+        self._model = self._construct_model(model_name)
+        self._optimiser = self._construct_optimiser(learning_rate)    
+        self._loss_function = self._construct_loss_function()
+        self._record = self._construct_record()
+
+        if is_resuming:
+            self._read_weight_and_record()
+        else:
+            self._reset_weight_and_record(output_directory_path)
+
+    def _construct_weight_file_path(
+        self,
+        model_name: str,
+        upsample_name: str,
+        output_directory_path: str,
+        scale_factor: int,
+    ) -> str:
+        """Constructs a file path to store model weights."""
+        return f'{output_directory_path}/{model_name}_{upsample_name}_x{scale_factor}.pth'
+
+    def _construct_record_file_path(self, output_directory_path: str) -> str:
+        """Constructs a file path to store record."""
+        return f'{output_directory_path}/record.csv'
+
+    def _construct_train_data_loader(self) -> DataLoader:
+        """Constructs a dataloader to load train data."""
+        return DataLoader(
+            dataset = AapmMayoDataset('train'),
+            batch_size = 1,
+            shuffle = True,
+            num_workers = 4,
+        )
+
+    def _construct_validation_data_loader(self) -> DataLoader:
+        """Constructs a dataloader to load validation data."""
+        return DataLoader(
+            dataset = AapmMayoDataset('validation'),
+            batch_size = 1,
+            shuffle = True,
+            num_workers = 4,
+        )
+    
+    def _construct_model(self, model_name: str) -> nn.Module:
+        """Constructs a model used in the experiment.
+
+        Constructs a model based on the given model name.
+        The model is moved to the train device and also
+        coverted to the data parallelism if multiple GPUs are
+        available.
+
+        Args:
+            model_name:
+                A str that specifies the name of the model.    
+            device:
+                A torch.device that specifies the device used
+                in the experiment.
+            device_id:
+                A tuple[int, ...] | None that specifies indices
+                of all GPUs if multiple GPUs are available.
+            
+        Returns:
+            A torch.nn.Module that specifies the corresponding
+            architecture of the model.
+        
+        Raises:
+            ValueError: The given model_namee is invalid.    
+        """
+        device = device_configuration.TRAIN_DEVICE
+        device_id = device_configuration.TRAIN_DEVICE_ID
+
+        match model_name:
+            case 'PlainCNN':
+                model = PlainCNN().to(device)
+            case 'AE_Maxpool':
+                model = Autoencoder_Maxpool().to(device)
+            case 'AE_Conv':
+                model = Autoencoder_Conv().to(device)
+            case 'UNet':
+                model = UNet().to(device)
+            case _:
+                raise ValueError(f'Can not find model: {model_name}')
+
+        if device_id is not None:
+            model = nn.parallel.DataParallel(model, device_id)
+        
+        return model
+    
+    def _construct_optimiser(self, learning_rate: float) -> nn.Module:
+        """Constructs an Adam optimiser."""
+        return torch.optim.Adam(self._model.parameters(), learning_rate)
+        
+    def _construct_loss_function(self) -> nn.Module:
+        """Constructs a L2 loss function."""
+        return nn.MSELoss()
+
+    def _construct_record() -> pd.DataFrame:
+        """Constructs an empty record."""
+        return pd.DataFrame()
+    
+    def _read_weight_and_record(self) -> None:
+        """Reads weights and record from last experiment."""
+        self._model = io_utils.read_weight(self._weight_file_path, self._model)
+        self._record = io_utils.read_file(self._record_file_path)
+    
+    def _write_weight_and_record(self) -> None:
+        """Writes current weights and record."""
+        io_utils.write_weight(self._weight_file_path, self._model)
+        io_utils.write_file(self._record_file_path, self._record)
+    
+    def _reset_weight_and_record(self, output_directory_path: str) -> None:
+        """Resets outputs from last experiment."""
+        path_utils.make_directory(output_directory_path)
+        path_utils.reset_file(self._weight_file_path)
+        path_utils.reset_file(self._record_file_path)
+
+    def _is_finished(self) -> bool:
+        """Returns whether the training is finished or not."""
+        return len(self._record) >= self._epoch
+
+    def _reset_batch_loss_accumulator(self) -> None:
+        """Resets batch loss accumulators."""
+        self._train_batch_loss_accumulator = BatchLossAccumulator()
+        self._validation_batch_loss_accumulator = BatchLossAccumulator()
 
 class BatchExtractor:
     """An iterator for efficient batch extraction.
@@ -86,31 +255,43 @@ class BatchLossAccumulator:
         """Returns the average batch loss."""
         return self._batch_loss_total / self._count
 
-def reset_directory(directory_path: str) -> None:
-    """Resets the directory at the given path.
+def train(delegate: TrainDelegate) -> None:
+    """Trains the model using given experiment settings.
 
-    Tries to delete the directory at the given path if it
-    can be found and creates an empty directory.
+    Trains the model using given experiment settings by the
+    following steps:
+        (1) Validates the model within an epoch.
+        (2) Trains the model within an epoch.
+        (3) Append summary of the current epoch to record.
+        (3) Writes current weights and records.
+        (4) Report epoch summary to the terminal.
+        (5) Repeats step 1~4 until finishing.
     """
-    try:
-        shutil.rmtree(directory_path)
-    except:
-        pass
-    finally:
-        os.mkdir(directory_path)
+    while not delegate._is_finished():
+        delegate._reset_batch_loss_accumulator()
 
-def validate_epoch(
-    input: torch.Tensor,
-    label: torch.Tensor,
-    window: tuple[float|None, float|None],
-    scale_factor: int,
-    upsample_name: str,
-    patch_size: int,
-    batch_size: int,
-    model: nn.Module,
-    loss_function: nn.Module,
-    validation_batch_loss_accumulator: BatchLossAccumulator,
-) -> None:
+        time_start = time.time()
+        validate_epoch(delegate)
+        train_epoch(delegate)
+        time_end = time.time()
+
+        epoch_summary = {
+            'epoch': len(delegate._record) + 1,
+            'train_loss':
+                delegate._train_batch_loss_accumulator.average_batch_loss(),
+            'validation_loss':
+               delegate._validation_batch_loss_accumulator.average_batch_loss(),
+            'time': time_end - time_start,
+        }
+        append_record(epoch_summary, delegate)
+
+        delegate._write_weight_and_record()
+
+        report_epoch_summary(epoch_summary)
+
+        torch.cuda.empty_cache()
+
+def validate_epoch(delegate: TrainDelegate) -> None:
     """Validates the model within an epoch.
 
     Validates the model within an epoch with the following
@@ -119,55 +300,25 @@ def validate_epoch(
         (2) Validates the model batch-by-batch.
     
     Args:
-        input:
-            A torch.Tensor that contains pixel values of
-            the input.    
-        label:
-            A torch.Tensor that contains pixel values of
-            the label.
-        window:
-            A tuple[float|None, float|None] that specifies
-            the range of pixel values interested.
-        scale_factor:
-            An int that specifies the scale factor of
-            downsampling/upsampling operations in z axis.
-        upsample_name:
-            A str that specifies the name of the upsampling
-            method.     
-        patch_size:
-            An int that specifies the size of cubic
-            patches.
-        batch_size:
-            An int that specifies the number of data within
-            one batch.
-        model:
-            A torch.nn.Module that specifies the
-            architecture of the model.
-        loss_function:
-            A torch.nn.Module that defines the difference
-            between the prediction and label.
-        validation_batch_loss_accumulator:
-            A BatchAccumulator that accumulates validation
-            loss for all batches.
+        delegate:
+            A TrainDelegate that contains all components
+            required in model training.
     """
-    input = pre_process_input(
-        input, window, scale_factor, upsample_name, patch_size)
-    label = pre_process_label(label, window, patch_size)
+    with torch.no_grad():
+        delegate._model.eval()
 
-    for input_batch, label_batch in BatchExtractor(input, label, batch_size):
-        validate_batch(
-            input_batch, label_batch,
-            model,
-            loss_function,
-            validation_batch_loss_accumulator,
-        )
+        for input, label in delegate._validation_data_loader:
+            input = pre_process_input(input, delegate)
+            label = pre_process_label(label, delegate)
+
+            batch_extractor = BatchExtractor(input, label, delegate._batch_size)
+            for input_batch, label_batch in batch_extractor:
+                validate_batch(input_batch, label_batch, delegate)
 
 def validate_batch(
     input_batch: torch.Tensor,
     label_batch: torch.Tensor,
-    model: nn.Module,
-    loss_function: nn.Module,
-    validation_batch_loss_accumulator: BatchLossAccumulator,
+    delegate: TrainDelegate,
 ) -> None:
     """Validates the model using batch data.
 
@@ -186,99 +337,46 @@ def validate_batch(
         label_batch:
             A torch.Tensor that contains pixel values of
             the label batch.
-        model:
-            A torch.nn.Module that specifies the
-            architecture of the model.
-        loss_function:
-            A torch.nn.Module that defines the difference
-            between the prediction and label.
-        validation_batch_loss_accumulator:
-            A BatchAccumulator that accumulates validation
-            loss for all batches.
+        delegate:
+            A TrainDelegate that contains all components
+            required in model training.
     """
     input_batch = input_batch.to(device_configuration.TRAIN_DEVICE)
     label_batch = label_batch.to(device_configuration.TRAIN_DEVICE)
 
-    validation_batch_loss = loss_function(model(input_batch), label_batch)
+    prediction_batch = delegate._model(input_batch)
 
-    validation_batch_loss_accumulator.accumulate_batch_loss(
-        validation_batch_loss.item())
+    batch_loss = delegate._loss_function(prediction_batch, label_batch)
+    delegate._validation_batch_loss_accumulator.accumulate_batch_loss(
+        batch_loss.item())
 
-def train_epoch(
-    input: torch.Tensor,
-    label: torch.Tensor,
-    window: tuple[float|None, float|None],
-    scale_factor: int,
-    upsample_name: str,
-    patch_size: int,
-    batch_size: int,
-    model: nn.Module,
-    optimiser: nn.Module,
-    loss_function: nn.Module,
-    train_batch_loss_accumulator: BatchLossAccumulator,
-) -> None:
-    """Validates the model within an epoch.
+def train_epoch(delegate: TrainDelegate) -> None:
+    """Trains the model within an epoch.
 
-    Validates the model within an epoch with the following
+    Trains the model within an epoch with the following
     steps:
         (1) Pre-processes input and label.
-        (2) Validates the model batch-by-batch.
+        (2) Trains the model batch-by-batch.
     
     Args:
-        input:
-            A torch.Tensor that contains pixel values of
-            the input.    
-        label:
-            A torch.Tensor that contains pixel values of
-            the label.
-        window:
-            A tuple[float|None, float|None] that specifies
-            the range of pixel values interested.
-        scale_factor:
-            An int that specifies the scale factor of
-            downsampling/upsampling operations in z axis.
-        upsample_name:
-            A str that specifies the name of the upsampling
-            method.     
-        patch_size:
-            An int that specifies the size of cubic
-            patches.
-        batch_size:
-            An int that specifies the number of data within
-            one batch.
-        model:
-            A torch.nn.Module that specifies the
-            architecture of the model.
-        optimiser:
-            A torch.nn.Module that can be used to update
-            model weights.
-        loss_function:
-            A torch.nn.Module that defines the difference
-            between the prediction and label.
-        train_batch_loss_accumulator:
-            A BatchAccumulator that accumulates train loss
-            for all batches.
+        delegate:
+            A TrainDelegate that contains all components
+            required in model training.
     """
-    input = pre_process_input(
-        input, window, scale_factor, upsample_name, patch_size)
-    label = pre_process_label(label, window, patch_size)
+    delegate._model.train()
 
-    for input_batch, label_batch in BatchExtractor(input, label, batch_size):
-        train_batch(
-            input_batch, label_batch,
-            model,
-            optimiser,
-            loss_function,
-            train_batch_loss_accumulator,
-        )
+    for input, label in delegate._train_data_loader:
+        input = pre_process_input(input, delegate)
+        label = pre_process_label(label, delegate)
+
+        batch_extractor = BatchExtractor(input, label, delegate._batch_size)
+        for input_batch, label_batch in batch_extractor:
+            train_batch(input_batch, label_batch, delegate)
 
 def train_batch(
     input_batch: torch.Tensor,
     label_batch: torch.Tensor,
-    model: nn.Module,
-    optimiser: nn.Module,
-    loss_function: nn.Module,
-    train_batch_loss_accumulator: BatchLossAccumulator,
+    delegate: TrainDelegate,
 ) -> None:
     """Trains the model using batch data.
 
@@ -298,36 +396,24 @@ def train_batch(
         label_batch:
             A torch.Tensor that contains pixel values of
             the label batch.
-        model:
-            A torch.nn.Module that specifies the
-            architecture of the model.
-        optimiser:
-            A torch.nn.Module that can be used to update
-            model weights.
-        loss_function:
-            A torch.nn.Module that defines the difference
-            between the prediction and label.
-        train_batch_loss_accumulator:
-            A BatchAccumulator that accumulates train loss
-            for all batches.
+        delegate:
+            A TrainDelegate that contains all components
+            required in model training.
     """
     input_batch = input_batch.to(device_configuration.TRAIN_DEVICE)
     label_batch = label_batch.to(device_configuration.TRAIN_DEVICE)
 
-    optimiser.zero_grad()
-    batch_loss = loss_function(model(input_batch), label_batch)
-    train_batch_loss_accumulator.accumulate_batch_loss(batch_loss.item())
+    delegate._optimiser.zero_grad()
+    prediction_batch = delegate._model(input_batch)
+    batch_loss = delegate._loss_function(prediction_batch, label_batch)
     batch_loss.backward()
+    delegate._optimiser.step()
 
-    optimiser.step()
+    delegate._train_batch_loss_accumulator.accumulate_batch_loss(
+        batch_loss.item())
 
 def pre_process_input(
-    input: torch.Tensor,
-    window: tuple[float|None, float|None],
-    scale_factor: int,
-    upsample_name: str,
-    patch_size: int,
-) -> torch.Tensor:
+    input: torch.Tensor, delegate: TrainDelegate) -> torch.Tensor:
     """Pre-processes input.
 
     Pre-processes input before model training/validation
@@ -346,37 +432,27 @@ def pre_process_input(
         input:
             A torch.Tensor that contains pixel values of
             the input.
-        window:
-            A tuple[float|None, float|None] that specifies
-            the range of pixel values interested.
-        scale_factor:
-            An int that specifies the scale factor of
-            downsampling/upsampling operations in z axis.
-        upsample_name:
-            A str that specifies the name of the upsampling
-            method.     
-        patch_size:
-            An int that specifies the size of cubic
-            patches.
+        delegate:
+            A TrainDelegate that contains all components
+            required in model training.
 
     Returns:
         A torch.Tensor that contains pixel values of
         the pre-processed input.
     """
-    input = image_utils.normalise_pixel(input, *window)
-    input = image_utils.truncate_image(input, patch_size)
+    input = image_utils.normalise_pixel(input, *delegate._window)
+    input = image_utils.truncate_image(input, delegate._patch_size)
     input = image_utils.downsample_image_x_y_axis(input)
-    input = image_utils.downsample_image_z_axis(input, scale_factor)
+    input = image_utils.downsample_image_z_axis(input, delegate._scale_factor)
     input = image_utils.upsample_image_z_axis(
-        input, scale_factor, upsample_name)
-    input = image_utils.patch_image(input, patch_size)
+        input, delegate._scale_factor, delegate._upsample_name)
+    input = image_utils.patch_image(input, delegate._patch_size)
 
     return input
 
 def pre_process_label(
     label: torch.Tensor,
-    window: tuple[float|None, float|None],
-    patch_size: int,
+    delegate: TrainDelegate,
 ) -> torch.Tensor:
     """Pre-processes label.
 
@@ -392,37 +468,35 @@ def pre_process_label(
         input:
             A torch.Tensor that contains pixel values of
             the input.
-        window:
-            A tuple[float|None, float|None] that specifies
-            the range of pixel values interested.
-        patch_size:
-            An int that specifies the size of cubic
-            patches.
+        delegate:
+            A TrainDelegate that contains all components
+            required in model training.
 
     Returns:
         A torch.Tensor that contains pixel values of
         the pre-processed label.
     """
-    label = image_utils.normalise_pixel(label, *window)
-    label = image_utils.truncate_image(label, patch_size)
+    label = image_utils.normalise_pixel(label, *delegate._window)
+    label = image_utils.truncate_image(label, delegate._patch_size)
     label = image_utils.downsample_image_x_y_axis(label)
-    label = image_utils.patch_image(label, patch_size)
+    label = image_utils.patch_image(label, delegate._patch_size)
 
     return label
 
 def append_record(
-    epoch_data: dict[str, float], record: pd.DataFrame) -> pd.DataFrame:
+    epoch_summary: dict[str, float], delegate: TrainDelegate) -> None:
     """Appends data from current epoch to record."""
-    row = {key: [value] for key, value in epoch_data.items()}
+    row = {key: [value] for key, value in epoch_summary.items()}
     row = pd.DataFrame(row)
 
-    return pd.concat((record, row))
+    delegate._record = pd.concat((delegate._record, row))
 
-def report_epoch_data(epoch_data: dict[str, float]) -> None:
-    """Reports data from current epoch in terminal."""
+def report_epoch_summary(epoch_summary: dict[str, float]) -> None:
+    """Reports summary of the current epoch in the terminal."""
     print(
-        'Epoch:', epoch_data['epoch'], '\t',
-        'Train Loss:', '{:.4e}'.format(epoch_data['train_loss']), '\t',
-        'Validation Loss:', '{:.4e}'.format(epoch_data['validation_loss']), '\t',
-        'Time:', '{:.2f}'.format(epoch_data['time']), 's',
+        'Epoch:', epoch_summary['epoch'], '\t',
+        'Train Loss:', '{:.4e}'.format(epoch_summary['train_loss']), '\t',
+        'Validation Loss:',
+            '{:.4e}'.format(epoch_summary['validation_loss']), '\t',
+        'Time:', '{:.2f}'.format(epoch_summary['time']), 's',
     )
