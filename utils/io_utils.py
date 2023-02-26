@@ -12,22 +12,42 @@ import torch
 from torch import nn
 
 
-def read_dicom_image_directory(directory_path: str) -> np.ndarray:
-    """Reads a 3D Dicom image from the given directory.
+def read_3D_image(path: str) -> np.ndarray:
+    """Reads a 3D image from the given path.
 
-    Reads a 3D Dicom image from the given directory using
-    SimpleITK API. All slices are read in order.
+    Reads a 3D image from the given path. This function
+    can handle the following paths:
+        (1) A .nii/.nii.gz file path
+        (2) A .npy file path
+        (3) A directory path that contains all Dicom files
 
     Args:
-        directory_path:
-            A str that specifies the path of the directory
-            that contains all Dicom files that belongs to
-            the same 3D image.
+        path:
+            A str that specifies the path of the 3D image.
     
     Returns:
-        A numpy.ndarray that contains all HU values of the
-        3D image.    
+        A numpy.ndarray that contains all pixel values
+        within the 3D image. 
     """
+    if '.nii' in path:
+        return _read_3D_image_nii_file(path)
+    elif path.endswith('.npy'):
+        return _read_3D_image_npy_file(path)
+    else:
+        return _read_3D_image_dicom_directory(path)
+
+def _read_3D_image_nii_file(file_path: str) -> np.ndarray:
+    """Reads a 3D image from the given .nii file."""
+    image = sitk.ReadImage(file_path)
+
+    return sitk.GetArrayFromImage(image)
+
+def _read_3D_image_npy_file(file_path: str) -> np.ndarray:
+    """Reads a 3D image from the given .npy file."""
+    return np.load(file_path)
+
+def _read_3D_image_dicom_directory(directory_path: str) -> np.ndarray:
+    """Reads a 3D image from the given directory."""
     reader = sitk.ImageSeriesReader()
     reader.SetFileNames(reader.GetGDCMSeriesFileNames(directory_path))
 
