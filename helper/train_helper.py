@@ -26,8 +26,8 @@ class TrainDelegate:
 
     A delegate that is specifically designed for model
     training. It contains all components required and 
-    some convenient functions that fascilitate the training
-    experiment.
+    some convenient functions that fascilitate training
+    experiments.
     """
 
     def __init__(
