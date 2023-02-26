@@ -48,8 +48,8 @@ conda activate 3DSuperResolution
 ### Dataset
 To use a customised dataset, please provide a dataset loading file as **.csv**
 and modify `DATASET_LOADING_FILE_PATH` in
-[dataset_configuration.py]('./configuration/dataset_configuration.py'). This
-file should contains the following columns:
+[path_configuration.py]('./configuration/path_configuration.py'). This file
+should contains the following columns:
 
 - `path`: A **str** that specifies the path of a 3D image
 - `tag`: A **str** that specifies the subset, one of `train`/`validation`/`test`.
