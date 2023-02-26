@@ -81,6 +81,12 @@ To train models on customised datasets:
     updating.
     - `window`: A **tuple[float|None, float|None]** that specifies the range of
     pixel values interested.
+  
+- Run the following command:
+
+  ```shell script
+  python train.py
+  ```
 
 We have provided the following models:
 
