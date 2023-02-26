@@ -112,19 +112,13 @@ class TrainDelegate:
         Args:
             model_name:
                 A str that specifies the name of the model.    
-            device:
-                A torch.device that specifies the device used
-                in the experiment.
-            device_id:
-                A tuple[int, ...] | None that specifies indices
-                of all GPUs if multiple GPUs are available.
             
         Returns:
             A torch.nn.Module that specifies the corresponding
             architecture of the model.
         
         Raises:
-            ValueError: The given model_namee is invalid.    
+            ValueError: The given model_name is invalid.    
         """
         device = device_configuration.TRAIN_DEVICE
         device_id = device_configuration.TRAIN_DEVICE_ID
@@ -266,6 +260,11 @@ def train(delegate: TrainDelegate) -> None:
         (3) Writes current weights and records.
         (4) Report epoch summary to the terminal.
         (5) Repeats step 1~4 until finishing.
+    
+    Args:
+        delegate:
+            A TrainDelegate that contains all components
+            required and model training.
     """
     while not delegate._is_finished():
         delegate._reset_batch_loss_accumulator()
