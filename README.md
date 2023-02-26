@@ -80,7 +80,7 @@ To train models on customised datasets:
     - `learning_rate`: A **float** that specifies the step size in gradient
     updating.
     - `window`: A **tuple[float|None, float|None]** that specifies the range of
-    pixel values interested.
+    HU values interested.
   
 - Run the following command:
 
