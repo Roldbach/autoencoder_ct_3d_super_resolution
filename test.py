@@ -20,7 +20,7 @@ def plotImage(image, name, path):
 if __name__ == '__main__':
     model_name = 'PlainCNN'
     upsample_name = 'trilinear_interpolation'
-    scale_factor = 4
+    scale_factor = 8
     weight_path = f'./weight/{model_name}_{upsample_name}_x{scale_factor}.pth'
     window = (-1024, 1476)
 
