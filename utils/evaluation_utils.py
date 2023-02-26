@@ -11,76 +11,77 @@ from skimage import metrics
 
 
 def evaluate_PSNR(
-    input: np.ndarray, label: np.ndarray, data_range: int,
-) -> float:
+    candidate: np.ndarray, reference: np.ndarray, data_range: int) -> float:
     """Returns Peak Signal-to-Noise Ratio (PSNR).
     
     Returns the Peak Signal-to-Noise Ratio (PSNR) between
-    input and label. PSNR focuses on the pixel-level error.
-    Data range is also applied for more accurate output.
+    candidate and reference. PSNR focuses on the pixel-level
+    error.  Data range is also applied for more accurate
+    output.
 
     Args:
-        input:
+        candidate:
             A numpy.ndarray that contains pixel values of
-            the input image.    
-        label:
+            the candidate.    
+        reference:
             A numpy.ndarray that contains pixel values of
-            the label image.
+            the reference.
         data_range:
             An int that specifies the range of pixel values
             within images. Both images should share the 
             same data range.
     
     Returns:
-        A float that specifies the PSNR between input and 
-        label.
+        A float that specifies the PSNR between the
+        candidate and the reference.
     """
-    return metrics.peak_signal_noise_ratio(input, label, data_range=data_range)
+    return metrics.peak_signal_noise_ratio(
+        candidate, reference, data_range=data_range)
 
 def evaluate_SSIM(
-    input: np.ndarray, label: np.ndarray, data_range: int,
-) -> float:
+    candidate: np.ndarray, reference: np.ndarray, data_range: int) -> float:
     """Returns Structural Similarity Index Measure (SSIM).
     
     Returns the Structural Similarity Index Measure (SSIM)
-    between input and label. SSIM focuses on the structural
-    difference.  Data range is also applied for more 
-    accurate output.
+    between candidate and reference. SSIM focuses on the
+    structural difference.  Data range is also applied for
+    more accurate output.
 
     Args:
-        input:
+        candidate:
             A numpy.ndarray that contains pixel values of
-            the input image.    
-        label:
+            the candidate.    
+        reference:
             A numpy.ndarray that contains pixel values of
-            the label image.
+            the reference.
         data_range:
             An int that specifies the range of pixel values
             within images. Both images should share the 
             same data range.
     
     Returns:
-        A float that specifies the SSIM between input and 
-        label.
+        A float that specifies the SSIM between the
+        candidate and the reference.
     """
-    return metrics.structural_similarity(input, label, data_range=data_range)
+    return metrics.structural_similarity(
+        candidate, reference, data_range=data_range)
 
-def evaluate_RMSE(input: np.ndarray, label: np.ndarray) -> float:
+def evaluate_RMSE(candidate: np.ndarray, reference: np.ndarray) -> float:
     """Returns Root Mean Square Error (RMSE).
     
-    Returns the Root Mean Square Error (RMSE) between input
-    and label. RMSE focuses on the pixel-level error.
+    Returns the Root Mean Square Error (RMSE) between candidate
+    and reference. RMSE focuses on the pixel-level error.
 
     Args:
-        input:
+        candidate:
             A numpy.ndarray that contains pixel values of
-            the input image.    
-        label:
+            the candidate.    
+        reference:
             A numpy.ndarray that contains pixel values of
-            the label image.
+            the reference.
     
     Returns:
-        A float that specifies the RMSE between input and 
-        label.
+        A float that specifies the RMSE between candidate and 
+        reference.
     """
-    return math.sqrt(metrics.mean_squared_error(input, label))
+    return math.sqrt(metrics.mean_squared_error(candidate, reference))
