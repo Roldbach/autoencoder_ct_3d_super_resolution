@@ -32,11 +32,7 @@
 ## Description
 This repository contains the official PyTorch Implementation of paper: Is
 Autoencoder Truly Applicable for 3D CT Super-Resolution? We have provided our
-full training and inference codes and pre-trained models as well. Users could
-use this repository to:
-
-- Train models on self-prepared datasets
-- Test models on self-prepared dataset
+full training and inference codes and pre-trained models as well.
 
 
 ## Get Started
@@ -50,12 +46,12 @@ conda activate 3DSuperResolution
 ```
 
 ### Dataset
-To use self-prepared dataset, please provide a dataset loading file and modify
+To use a customised dataset, please provide a dataset loading file as **.csv**
+and modify `DATASET_LOADING_FILE_PATH` in
 [dataset_configuration.py]('./configuration/dataset_configuration.py'). This
-loading file should contains the following columns:
+file should contains the following columns:
 
-- `path`: A **str** that specifies the file path of loading file ending with
-  **.csv**.
+- `path`: A **str** that specifies the path of a 3D image
 - `tag`: A **str** that specifies the subset, one of `train`/`validation`/`test`.
 
 
@@ -63,26 +59,9 @@ We have also provided a [sample loading file]('./dataset/sample_loading_file.csv
 as demonstration.
 
 
-### Model
-
-<p align='center'>
-  <img src='./image/model_all.png'/>
-</p> 
-
-Users can directly use the following models:
-
-  - `PlainCNN`: A cascade of (Conv3D + LeakyReLU) blocks + global residual
-    learning
-  - `AE_Maxpool`: Use PlainCNN as baseline model and Maxpooling as downsampling
-    method.
-  - `AE_Conv`: Use PlainCNN as baseline model and strided Conv3D as downsampling
-    method.
-  - `UNet`: A simplified 3D UNet implementation for fair comparisons.
-
-
-### Train models on self-prepared datasets
-- Fill in the *set_up_train_dataset* function in
-[setup_utils.py]('./utils/setup_utils.py').
+## Train models on customised datasets
+To train models on customised datasets:
+- Prepare the dataset by following the instructions above.
 - Go to [train.py]('./train.py') and specify the following settings:
 
     - model_name <br>
@@ -115,3 +94,21 @@ Users can directly use the following models:
       An **int** that specifies the number of data in one batch.
     - learning_rate <br>
       A **float** that specifies the step size in gradient updating.
+
+
+### Model
+
+<p align='center'>
+  <img src='./image/model_all.png'/>
+</p> 
+
+We have provided the following models:
+
+  - `PlainCNN`: A cascade of (Conv3D + LeakyReLU) blocks + global residual
+    learning
+  - `AE_Maxpool`: Use PlainCNN as baseline and Maxpooling as downsampling
+    method.
+  - `AE_Conv`: Use PlainCNN as baseline and strided Conv3D as downsampling
+    method.
+  - `UNet`: A simplified 3D UNet implementation for fair comparisons.
+
