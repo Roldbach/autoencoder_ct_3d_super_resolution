@@ -36,7 +36,7 @@ full training and inference codes and pre-trained models here.
 
 
 ## Get Started
-### Install Virtual Environment
+### Virtual Environment
 To install the environment, please clone the repository and run the following
 commands:
 
@@ -58,7 +58,7 @@ We have also provided a [sample loading file]('./dataset/sample_loading_file.csv
 as demonstration.
 
 
-## Train models on customised datasets
+## Train Models on Customised Datasets
 To train models on customised datasets:
 - Prepare the dataset loading file by following the instructions above.
 - Go to [train.py]('./train.py') and specify the following experiment settings:
