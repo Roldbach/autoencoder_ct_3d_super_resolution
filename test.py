@@ -19,8 +19,8 @@ from helper import test_helper
 if __name__ == '__main__':
     # Clean this
     model_name = 'PlainCNN'
-    upsample_name = 'trilinear_interpolation'
-    scale_factor = 8
+    upsample_name = 'same_insertion'
+    scale_factor = 2
     weight_path = f'./weight/{model_name}_{upsample_name}_x{scale_factor}.pth'
     window = (-1024, 1476)
 

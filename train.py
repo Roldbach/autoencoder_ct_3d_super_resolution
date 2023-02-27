@@ -25,6 +25,7 @@ import sys
 
 from helper import train_helper
 
+
 def main() -> int:
     """Runs the main script."""
     train_helper.train(parse_argument())
