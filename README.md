@@ -79,13 +79,21 @@ To train models on customised datasets:
     upsampling in the z-axis, `2`/`4`/`8` used in the paper.
     - `learning_rate`: A **float** that specifies the step size in gradient
     updating.
-    - `window`: A **tuple[float|None, float|None]** that specifies the range of
+    - `window`: A **tuple[int|None, int|None]** that specifies the range of
     HU values interested.
   
 - Run the following command:
 
   ```shell script
-  python train.py
+  python train.py --model_name PlainCNN                   \
+                  --upsample_name trilinear_interpolation \
+                  --output_directory_path ./output        \
+                  --epoch 500                             \
+                  --batch_size 16                         \
+                  --patch_size 64                         \
+                  --scale_factor 2                        \
+                  --learning_rate 1e-5                    \
+                  --window -1024 1476                     
   ```
 
 We have provided the following models:
