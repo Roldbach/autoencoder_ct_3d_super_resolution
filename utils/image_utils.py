@@ -53,8 +53,8 @@ def convert_tensor_to_array(image: torch.Tensor) -> np.ndarray:
 
 def normalise_pixel(
     image: torch.Tensor,
-    min: float | None = None,
-    max: float | None = None,
+    min: int | None = None,
+    max: int | None = None,
     data_type: torch.dtype = torch.float32,
 ) -> torch.Tensor:
     """Normalises image pixel values into [0, 1].
@@ -69,11 +69,11 @@ def normalise_pixel(
             A torch.Tensor that contains original pixel
             values of the image.
         min:
-            A float | None that specifies the minimum
-            pixel value.
+            A int | None that specifies the minimum pixel
+            value.
         max:
-            A float | None that specifies the maximum
-            pixel value.
+            A int | None that specifies the maximum pixel
+            value.
         data_type:
             A torch.dtype that specifies the data type
             of pixel values in the output.
@@ -91,7 +91,7 @@ def normalise_pixel(
     return image.type(data_type)
 
 def recover_pixel(
-    image: torch.Tensor, min: float, max: float, data_type: torch.dtype,
+    image: torch.Tensor, min: int, max: int, data_type: torch.dtype,
 ) -> torch.Tensor:
     """Recovers image pixel values back to [min, max].
 
@@ -103,10 +103,10 @@ def recover_pixel(
             A torch.Tensor that contains normalised pixel
             values of the image.
         min:
-            A float that specifies the minimum pixel value
+            A int that specifies the minimum pixel value
             originally.
         max:
-            A float that specifies the maximum pixel value
+            A int that specifies the maximum pixel value
             originally.
         data_type:
             A torch.dtype that specifies the original data
