@@ -133,4 +133,5 @@ manual_test.py
 record/
 temp/
 weight/
-dataset/
+dataset/AapmMayoDataset.py
+dataset/loading_file.txt

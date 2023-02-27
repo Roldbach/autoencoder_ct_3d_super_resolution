@@ -221,7 +221,7 @@ class BatchLossAccumulator:
         """Returns the average batch loss."""
         return self._batch_loss_total / self._count
 
-def train(delegate: TrainDelegate) -> None:
+def train(argument: Namespace) -> None:
     """Trains the model using given experiment settings.
 
     Trains the model using given experiment settings by the
@@ -234,10 +234,12 @@ def train(delegate: TrainDelegate) -> None:
         (5) Repeats step 1~4 until finishing.
     
     Args:
-        delegate:
-            A TrainDelegate that contains all components
-            required and model training.
+        argument:
+            A argparse.Namespace that contains arguments
+            directly from the terminal.
     """
+    delegate = TrainDelegate(argument)
+
     while not delegate._is_finished():
         time_start = time.time()
         validation_loss = validate_epoch(delegate)
