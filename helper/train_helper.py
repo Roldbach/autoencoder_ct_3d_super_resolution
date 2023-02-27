@@ -3,6 +3,7 @@
 This module contains classes and functions that can
 facilitate the model training/validation.
 """
+from argparse import Namespace
 import time
 
 import pandas as pd
@@ -27,61 +28,40 @@ class TrainDelegate:
     A delegate that is specifically designed for model
     training. It contains all components required and 
     some convenient functions that fascilitate training
-    experiments.
+    experiments. Arguments are directly obtained from the
+    terminal.
     """
 
-    def __init__(
-        self,
-        model_name: str,
-        upsample_name: str,
-        output_directory_path: str,
-        is_resuming: bool,
-        epoch: int,
-        batch_size: int,
-        patch_size: int,
-        scale_factor: int,
-        learning_rate: float,
-        window: tuple[float|None, float|None],
-    ) -> None:
+    def __init__(self, argument: Namespace) -> None:
         """Initialises TrainDelegate."""
-        self._epoch = epoch
-        self._batch_size = batch_size
-        self._patch_size = patch_size
-        self._scale_factor = scale_factor
-        self._window = window
-        self._upsample_name = upsample_name
-        self._train_batch_loss_accumulator = None
-        self._validation_batch_loss_accumulator = None
+        self._argument = argument
 
-        self._weight_file_path = self._construct_weight_file_path(
-            model_name, upsample_name, output_directory_path, scale_factor)
-        self._record_file_path = self._construct_record_file_path(
-            output_directory_path)
+        self._weight_file_path = self._construct_weight_file_path()
+        self._record_file_path = self._construct_record_file_path()
         self._train_data_loader = self._construct_train_data_loader()
         self._validation_data_loader = self._construct_validation_data_loader()
-        self._model = self._construct_model(model_name)
-        self._optimiser = self._construct_optimiser(learning_rate)    
+        self._model = self._construct_model()
+        self._optimiser = self._construct_optimiser()    
         self._loss_function = self._construct_loss_function()
         self._record = self._construct_record()
 
-        if is_resuming:
+        if self._argument.is_resuming:
             self._read_weight_and_record()
         else:
-            self._reset_weight_and_record(output_directory_path)
+            self._reset_weight_and_record()
 
-    def _construct_weight_file_path(
-        self,
-        model_name: str,
-        upsample_name: str,
-        output_directory_path: str,
-        scale_factor: int,
-    ) -> str:
+    def _construct_weight_file_path(self) -> str:
         """Constructs a file path to store model weights."""
-        return f'{output_directory_path}/{model_name}_{upsample_name}_x{scale_factor}.pth'
+        return '{}/{}_{}_x{}.pth'.format(
+            self._argument.output_directory_path,
+            self._argument.model_name,
+            self._argument.upsample_name,
+            self._argument.scale_factor,
+        )
 
-    def _construct_record_file_path(self, output_directory_path: str) -> str:
+    def _construct_record_file_path(self) -> str:
         """Constructs a file path to store record."""
-        return f'{output_directory_path}/record.csv'
+        return f'{self._argument.output_directory_path}/record.csv'
 
     def _construct_train_data_loader(self) -> DataLoader:
         """Constructs a dataloader to load train data."""
@@ -101,7 +81,7 @@ class TrainDelegate:
             num_workers = 4,
         )
     
-    def _construct_model(self, model_name: str) -> nn.Module:
+    def _construct_model(self) -> nn.Module:
         """Constructs a model used in the experiment.
 
         Constructs a model based on the given model name.
@@ -109,10 +89,6 @@ class TrainDelegate:
         coverted to the data parallelism if multiple GPUs are
         available.
 
-        Args:
-            model_name:
-                A str that specifies the name of the model.    
-            
         Returns:
             A torch.nn.Module that specifies the corresponding
             architecture of the model.
@@ -123,7 +99,7 @@ class TrainDelegate:
         device = device_configuration.TRAIN_DEVICE
         device_id = device_configuration.TRAIN_DEVICE_ID
 
-        match model_name:
+        match self._argument.model_name:
             case 'PlainCNN':
                 model = PlainCNN().to(device)
             case 'AE_Maxpool':
@@ -133,22 +109,23 @@ class TrainDelegate:
             case 'UNet':
                 model = UNet().to(device)
             case _:
-                raise ValueError(f'Can not find model: {model_name}')
+                raise ValueError(
+                    f'Can not find model: {self._argument.model_name}')
 
         if device_id is not None:
             model = nn.parallel.DataParallel(model, device_id)
         
         return model
     
-    def _construct_optimiser(self, learning_rate: float) -> nn.Module:
+    def _construct_optimiser(self) -> nn.Module:
         """Constructs an Adam optimiser."""
-        return torch.optim.Adam(self._model.parameters(), learning_rate)
+        return torch.optim.Adam(self._model.parameters(), self._argument.learning_rate)
         
     def _construct_loss_function(self) -> nn.Module:
         """Constructs a L2 loss function."""
         return nn.MSELoss()
 
-    def _construct_record() -> pd.DataFrame:
+    def _construct_record(self) -> pd.DataFrame:
         """Constructs an empty record."""
         return pd.DataFrame()
     
@@ -162,20 +139,15 @@ class TrainDelegate:
         io_utils.write_weight(self._weight_file_path, self._model)
         io_utils.write_file(self._record_file_path, self._record)
     
-    def _reset_weight_and_record(self, output_directory_path: str) -> None:
+    def _reset_weight_and_record(self) -> None:
         """Resets outputs from last experiment."""
-        path_utils.make_directory(output_directory_path)
+        path_utils.make_directory(self._argument.output_directory_path)
         path_utils.reset_file(self._weight_file_path)
         path_utils.reset_file(self._record_file_path)
 
     def _is_finished(self) -> bool:
         """Returns whether the training is finished or not."""
         return len(self._record) >= self._epoch
-
-    def _reset_batch_loss_accumulator(self) -> None:
-        """Resets batch loss accumulators."""
-        self._train_batch_loss_accumulator = BatchLossAccumulator()
-        self._validation_batch_loss_accumulator = BatchLossAccumulator()
 
 class BatchExtractor:
     """An iterator for efficient batch extraction.
@@ -267,30 +239,25 @@ def train(delegate: TrainDelegate) -> None:
             required and model training.
     """
     while not delegate._is_finished():
-        delegate._reset_batch_loss_accumulator()
-
         time_start = time.time()
-        validate_epoch(delegate)
-        train_epoch(delegate)
+        validation_loss = validate_epoch(delegate)
+        train_loss = train_epoch(delegate)
         time_end = time.time()
 
         epoch_summary = {
             'epoch': len(delegate._record) + 1,
-            'train_loss':
-                delegate._train_batch_loss_accumulator.average_batch_loss(),
-            'validation_loss':
-               delegate._validation_batch_loss_accumulator.average_batch_loss(),
+            'train_loss': train_loss,
+            'validation_loss': validation_loss,
             'time': time_end - time_start,
         }
         append_record(epoch_summary, delegate)
+        report_epoch_summary(epoch_summary)
 
         delegate._write_weight_and_record()
 
-        report_epoch_summary(epoch_summary)
-
         torch.cuda.empty_cache()
 
-def validate_epoch(delegate: TrainDelegate) -> None:
+def validate_epoch(delegate: TrainDelegate) -> float:
     """Validates the model within an epoch.
 
     Validates the model within an epoch with the following
@@ -302,22 +269,33 @@ def validate_epoch(delegate: TrainDelegate) -> None:
         delegate:
             A TrainDelegate that contains all components
             required in model training.
+    
+    Returns:
+        A float that represents the validation loss across
+        all batches at the current epoch.
     """
+    batch_loss_accumulator = BatchLossAccumulator()
+
     with torch.no_grad():
         delegate._model.eval()
 
         for input, label in delegate._validation_data_loader:
-            input = pre_process_input(input, delegate)
-            label = pre_process_label(label, delegate)
+            input = pre_process_input(input, delegate._argument)
+            label = pre_process_label(label, delegate._argument)
 
-            batch_extractor = BatchExtractor(input, label, delegate._batch_size)
+            batch_extractor = BatchExtractor(
+                input, label, delegate._argument.batch_size)
             for input_batch, label_batch in batch_extractor:
-                validate_batch(input_batch, label_batch, delegate)
+                validate_batch(
+                    input_batch, label_batch, delegate, batch_loss_accumulator)
+    
+    return batch_loss_accumulator.average_batch_loss()
 
 def validate_batch(
     input_batch: torch.Tensor,
     label_batch: torch.Tensor,
     delegate: TrainDelegate,
+    batch_loss_accumulator: BatchLossAccumulator,
 ) -> None:
     """Validates the model using batch data.
 
@@ -339,6 +317,10 @@ def validate_batch(
         delegate:
             A TrainDelegate that contains all components
             required in model training.
+        batch_loss_accumulator:
+            A BatchLossAccumulator that can accumulate the
+            loss for all batches and compute the average
+            value as the final epoch loss.
     """
     input_batch = input_batch.to(device_configuration.TRAIN_DEVICE)
     label_batch = label_batch.to(device_configuration.TRAIN_DEVICE)
@@ -346,10 +328,9 @@ def validate_batch(
     prediction_batch = delegate._model(input_batch)
 
     batch_loss = delegate._loss_function(prediction_batch, label_batch)
-    delegate._validation_batch_loss_accumulator.accumulate_batch_loss(
-        batch_loss.item())
+    batch_loss_accumulator.accumulate_batch_loss(batch_loss.item())
 
-def train_epoch(delegate: TrainDelegate) -> None:
+def train_epoch(delegate: TrainDelegate) -> float:
     """Trains the model within an epoch.
 
     Trains the model within an epoch with the following
@@ -361,21 +342,31 @@ def train_epoch(delegate: TrainDelegate) -> None:
         delegate:
             A TrainDelegate that contains all components
             required in model training.
+
+    Returns:
+        A float that represents the train loss across all
+        batches at the current epoch.
     """
+    batch_loss_accumulator = BatchLossAccumulator()
+
     delegate._model.train()
-
     for input, label in delegate._train_data_loader:
-        input = pre_process_input(input, delegate)
-        label = pre_process_label(label, delegate)
+        input = pre_process_input(input, delegate._argument)
+        label = pre_process_label(label, delegate._argument)
 
-        batch_extractor = BatchExtractor(input, label, delegate._batch_size)
+        batch_extractor = BatchExtractor(
+            input, label, delegate._argument.batch_size)
         for input_batch, label_batch in batch_extractor:
-            train_batch(input_batch, label_batch, delegate)
+            train_batch(
+                input_batch, label_batch, delegate, batch_loss_accumulator)
+    
+    return batch_loss_accumulator.average_batch_loss()
 
 def train_batch(
     input_batch: torch.Tensor,
     label_batch: torch.Tensor,
     delegate: TrainDelegate,
+    batch_loss_accumulator: BatchLossAccumulator,
 ) -> None:
     """Trains the model using batch data.
 
@@ -398,6 +389,10 @@ def train_batch(
         delegate:
             A TrainDelegate that contains all components
             required in model training.
+        batch_loss_accumulator:
+            A BatchLossAccumulator that can accumulate the
+            loss for all batches and compute the average
+            value as the final epoch loss.
     """
     input_batch = input_batch.to(device_configuration.TRAIN_DEVICE)
     label_batch = label_batch.to(device_configuration.TRAIN_DEVICE)
@@ -408,11 +403,10 @@ def train_batch(
     batch_loss.backward()
     delegate._optimiser.step()
 
-    delegate._train_batch_loss_accumulator.accumulate_batch_loss(
-        batch_loss.item())
+    batch_loss_accumulator.accumulate_batch_loss(batch_loss.item())
 
 def pre_process_input(
-    input: torch.Tensor, delegate: TrainDelegate) -> torch.Tensor:
+    input: torch.Tensor, argument: Namespace) -> torch.Tensor:
     """Pre-processes input.
 
     Pre-processes input before model training/validation
@@ -431,28 +425,26 @@ def pre_process_input(
         input:
             A torch.Tensor that contains pixel values of
             the input.
-        delegate:
-            A TrainDelegate that contains all components
-            required in model training.
+        argument:
+            A argparse.Namespace that contains arguments
+            directly from the terminal.
 
     Returns:
         A torch.Tensor that contains pixel values of
         the pre-processed input.
     """
-    input = image_utils.normalise_pixel(input, *delegate._window)
-    input = image_utils.truncate_image(input, delegate._patch_size)
+    input = image_utils.normalise_pixel(input, *argument.window)
+    input = image_utils.truncate_image(input, argument.patch_size)
     input = image_utils.downsample_image_x_y_axis(input)
-    input = image_utils.downsample_image_z_axis(input, delegate._scale_factor)
+    input = image_utils.downsample_image_z_axis(input, argument.scale_factor)
     input = image_utils.upsample_image_z_axis(
-        input, delegate._scale_factor, delegate._upsample_name)
-    input = image_utils.patch_image(input, delegate._patch_size)
+        input, argument.scale_factor, argument.upsample_name)
+    input = image_utils.patch_image(input, argument.patch_size)
 
     return input
 
 def pre_process_label(
-    label: torch.Tensor,
-    delegate: TrainDelegate,
-) -> torch.Tensor:
+    label: torch.Tensor, argument: Namespace) -> torch.Tensor:
     """Pre-processes label.
 
     Pre-processes label before model training/validation
@@ -467,18 +459,18 @@ def pre_process_label(
         input:
             A torch.Tensor that contains pixel values of
             the input.
-        delegate:
-            A TrainDelegate that contains all components
-            required in model training.
+        argument:
+            A argparse.Namespace that contains arguments
+            directly from the terminal.
 
     Returns:
         A torch.Tensor that contains pixel values of
         the pre-processed label.
     """
-    label = image_utils.normalise_pixel(label, *delegate._window)
-    label = image_utils.truncate_image(label, delegate._patch_size)
+    label = image_utils.normalise_pixel(label, *argument.window)
+    label = image_utils.truncate_image(label, argument.patch_size)
     label = image_utils.downsample_image_x_y_axis(label)
-    label = image_utils.patch_image(label, delegate._patch_size)
+    label = image_utils.patch_image(label, argument.patch_size)
 
     return label
 
