@@ -88,6 +88,7 @@ To train models on customised datasets:
   python train.py --model_name PlainCNN                   \
                   --upsample_name trilinear_interpolation \
                   --output_directory_path ./output        \
+                  --is_resuming                           \
                   --epoch 500                             \
                   --batch_size 16                         \
                   --patch_size 64                         \
