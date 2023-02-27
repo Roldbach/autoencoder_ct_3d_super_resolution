@@ -1,0 +1,11 @@
+path,tag
+/sample_directory/path_to_3D_image_0,train
+/sample_directory/path_to_3D_image_1,train
+/sample_directory/path_to_3D_image_2,train
+/sample_directory/path_to_3D_image_3,train
+/sample_directory/path_to_3D_image_4,train
+/sample_directory/path_to_3D_image_5,train
+/sample_directory/path_to_3D_image_6,train
+/sample_directory/path_to_3D_image_7,validation
+/sample_directory/path_to_3D_image_8,validation
+/sample_directory/path_to_3D_image_9,test
