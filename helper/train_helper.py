@@ -1,7 +1,8 @@
 """Helper of model training/validation.
 
 This module contains classes and functions that can
-facilitate the model training/validation.
+facilitate the model training/validation. The main function
+train() is compatible with arguments from the terminal.
 """
 from argparse import Namespace
 import time
