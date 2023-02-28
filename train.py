@@ -19,6 +19,8 @@ model, please specify the following experiment settings:
         updating.
     (10) window: tuple[int|None, int|None], the range of HU
         values interested.
+
+This script can be interacted directly from the terminal.
 """
 import argparse
 import sys
