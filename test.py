@@ -12,24 +12,51 @@ model, please specify the following experiment settings:
         /upsampling in the z-axis.
     (5) window: tuple[float|None, float|None], the range
         of HU values interested.
+
+This script can be interacted directly from the terminal.
 """
+import argparse
+import sys
+
 from helper import test_helper
 
 
-if __name__ == '__main__':
-    # Clean this
-    model_name = 'PlainCNN'
-    upsample_name = 'same_insertion'
-    scale_factor = 2
-    weight_path = f'./weight/{model_name}_{upsample_name}_x{scale_factor}.pth'
-    window = (-1024, 1476)
+def main() -> int:
+    test_helper.test(parse_argument())
 
-    delegate = test_helper.TestDelegate(
-        model_name = model_name,
-        upsample_name = upsample_name,
-        scale_factor = scale_factor,
-        weight_file_path = weight_path,
-        window = (-1024, 1476),
+    return 0
+
+def parse_argument() -> argparse.Namespace:
+    """Parse arguments from the terminal."""
+    parser = argparse.ArgumentParser(description=globals()['__doc__'])
+
+    parser.add_argument(
+        '--model_name',
+        type = str,
+        required = True,
+        help = 'The name of the model: PlainCNN | AE_Maxpool | AE_Conv | UNet',
+    )
+    parser.add_argument(
+        '--upsample_name',
+        type = str,
+        required = True,
+        help = 'The name of the upsampling method: trilinear_interpolation | same_insertion',
+    )
+    parser.add_argument(
+        '--weight_file_path',
+        type = str,
+        required = True,
+        help = 'The file that stores model weights',
+    )
+    parser.add_argument(
+        '--window',
+        type = int,
+        nargs = '+',
+        default = (None, None),
+        help = 'The range of HU values interested'
     )
 
-    test_helper.test(delegate)
+    return parser.parse_args()
+
+if __name__ == '__main__':
+    sys.exit(main())
