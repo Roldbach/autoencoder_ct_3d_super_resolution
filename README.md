@@ -59,43 +59,38 @@ as demonstration.
 
 
 ## Train Models on Customised Datasets
-To train models on customised datasets:
-- Prepare the dataset loading file by following the instructions above.
-- Go to [train.py]('./train.py') and specify the following experiment settings:
-
-    - `model_name`: A **str** that specifies the name of the model, one of 
-    `PlainCNN`/`AE_Maxpool`/`AE_Conv`/`UNet`.
-    - `upsample_name`: A **str** that specifies the name of the upsampling method
-    used in low-resolution data generation, one of `trilinear_interpolation`/
-    `same_insertion`.
-    - `output_directory_path`: A **str** that specifies the directory to store
-    model weigths and record.
-    - `is_resuming`: A **bool** that specifies whether resuming from the last
-    experiment.
-    - `epoch`: An **int** that specfies the number of epochs.
-    - `batch_size`: An **int** that specifies the number of data in one batch.
-    - `patch_size`: An **int** that specifies the size of cubic patches.
-    - `scale_factor`: An **int** that specifies the scale_factor of downsampling/
-    upsampling in the z-axis, `2`/`4`/`8` used in the paper.
-    - `learning_rate`: A **float** that specifies the step size in gradient
-    updating.
-    - `window`: A **tuple[int|None, int|None]** that specifies the range of
-    HU values interested.
-  
-- Run the following command:
+To train models on customised datasets, please run the following command:
 
   ```shell script
-  python train.py --model_name PlainCNN                   \
-                  --upsample_name trilinear_interpolation \
-                  --output_directory_path ./output        \
-                  --is_resuming                           \
-                  --epoch 500                             \
-                  --batch_size 16                         \
-                  --patch_size 64                         \
-                  --scale_factor 2                        \
-                  --learning_rate 1e-5                    \
-                  --window -1024 1476                     
+  python train.py --model_name <model_name>                         \
+                  --upsample_name <upsample_name>                   \
+                  --output_directory_path /path/to/output_directory \
+                  --is_resuming                                     \
+                  --epoch <epoch>                                   \
+                  --batch_size <batch_size>                         \
+                  --patch_size <patch_size>                         \
+                  --scale_factor <scale_factor>                     \
+                  --learning_rate <learning_rate>                   \
+                  --window <window>                     
   ```
+
+  - `model_name`: A **str** that specifies the name of the model, 
+  `PlainCNN`/`AE_Maxpool`/`AE_Conv`/`UNet`.
+  - `upsample_name`: A **str** that specifies the name of the upsampling method
+  used in low-resolution data generation, `trilinear_interpolation`/
+  `same_insertion`.
+  - `output_directory_path`: A **str** that specifies the directory to store
+  model weigths and record.
+  - `is_resuming`: Only add this if resuming from the last training.
+  - `epoch`: An **int** that specfies the number of epochs.
+  - `batch_size`: An **int** that specifies the number of data in one batch.
+  - `patch_size`: An **int** that specifies the size of cubic patches.
+  - `scale_factor`: An **int** that specifies the scale_factor of downsampling/
+  upsampling in the z-axis, `2`/`4`/`8` used in the paper.
+  - `learning_rate`: A **float** that specifies the step size in gradient
+  updating.
+  - `window`: A **tuple[int|None, int|None]** that specifies the range of
+  HU values interested.
 
 We have provided the following models:
 
@@ -110,3 +105,27 @@ We have provided the following models:
 <p align='center'>
   <img src='./image/model_all.png'/>
 </p> 
+
+
+## Test Models on Customised Datasets
+To test trained models on customised datasets, please run the following command:
+
+  ```shell script
+  python test.py --model_name <model_name>                \
+                 --upsample_name <upsample_name>          \
+                 --weight_file_path /path/to/model_weight \
+                 --scale_factor <scale_factor>            \
+                 --window <window>
+  ```
+
+  - `model_name`: A **str** that specifies the name of the model, 
+  `PlainCNN`/`AE_Maxpool`/`AE_Conv`/`UNet`.
+  - `upsample_name`: A **str** that specifies the name of the upsampling method
+  used in low-resolution data generation, `trilinear_interpolation`/
+  `same_insertion`.
+  - `weight_file_path`: An **str** that specifies the file that stores model
+  weights.
+  - `scale_factor`: An **int** that specifies the scale_factor of downsampling/
+  upsampling in the z-axis, `2`/`4`/`8` used in the paper.
+  - `window`: A **tuple[int|None, int|None]** that specifies the range of
+  HU values interested
