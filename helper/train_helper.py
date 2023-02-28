@@ -34,34 +34,32 @@ class TrainDelegate:
 
     def __init__(self, argument: Namespace) -> None:
         """Initialises TrainDelegate."""
-        self._argument = argument
-
-        self._weight_file_path = self._construct_weight_file_path()
-        self._record_file_path = self._construct_record_file_path()
+        self._weight_file_path = self._construct_weight_file_path(argument)
+        self._record_file_path = self._construct_record_file_path(argument)
         self._train_data_loader = self._construct_train_data_loader()
         self._validation_data_loader = self._construct_validation_data_loader()
-        self._model = self._construct_model()
-        self._optimiser = self._construct_optimiser()    
+        self._model = self._construct_model(argument)
+        self._optimiser = self._construct_optimiser(argument)    
         self._loss_function = self._construct_loss_function()
         self._record = self._construct_record()
 
-        if self._argument.is_resuming:
+        if argument.is_resuming:
             self._read_weight_and_record()
         else:
-            self._reset_weight_and_record()
+            self._reset_weight_and_record(argument)
 
-    def _construct_weight_file_path(self) -> str:
+    def _construct_weight_file_path(self, argument: Namespace) -> str:
         """Constructs a file path to store model weights."""
         return '{}/{}_{}_x{}.pth'.format(
-            self._argument.output_directory_path,
-            self._argument.model_name,
-            self._argument.upsample_name,
-            self._argument.scale_factor,
+            argument.output_directory_path,
+            argument.model_name,
+            argument.upsample_name,
+            argument.scale_factor,
         )
 
-    def _construct_record_file_path(self) -> str:
+    def _construct_record_file_path(self, argument: Namespace) -> str:
         """Constructs a file path to store record."""
-        return f'{self._argument.output_directory_path}/record.csv'
+        return f'{argument.output_directory_path}/record.csv'
 
     def _construct_train_data_loader(self) -> DataLoader:
         """Constructs a dataloader to load train data."""
@@ -81,13 +79,18 @@ class TrainDelegate:
             num_workers = 4,
         )
     
-    def _construct_model(self) -> nn.Module:
+    def _construct_model(self, argument: Namespace) -> nn.Module:
         """Constructs a model used in the experiment.
 
         Constructs a model based on the given model name.
         The model is moved to the train device and also
         coverted to the data parallelism if multiple GPUs are
         available.
+
+        Args:
+            argument:
+                A argparse.Namespace that contains arguments
+                directly from the terminal.
 
         Returns:
             A torch.nn.Module that specifies the corresponding
@@ -99,7 +102,7 @@ class TrainDelegate:
         device = device_configuration.TRAIN_DEVICE
         device_id = device_configuration.TRAIN_DEVICE_ID
 
-        match self._argument.model_name:
+        match argument.model_name:
             case 'PlainCNN':
                 model = PlainCNN().to(device)
             case 'AE_Maxpool':
@@ -110,16 +113,16 @@ class TrainDelegate:
                 model = UNet().to(device)
             case _:
                 raise ValueError(
-                    f'Can not find model: {self._argument.model_name}')
+                    f'Can not find model: {argument.model_name}')
 
         if device_id is not None:
             model = nn.parallel.DataParallel(model, device_id)
         
         return model
     
-    def _construct_optimiser(self) -> nn.Module:
+    def _construct_optimiser(self, argument: Namespace) -> nn.Module:
         """Constructs an Adam optimiser."""
-        return torch.optim.Adam(self._model.parameters(), self._argument.learning_rate)
+        return torch.optim.Adam(self._model.parameters(), argument.learning_rate)
         
     def _construct_loss_function(self) -> nn.Module:
         """Constructs a L2 loss function."""
@@ -139,9 +142,9 @@ class TrainDelegate:
         io_utils.write_weight(self._weight_file_path, self._model)
         io_utils.write_file(self._record_file_path, self._record)
     
-    def _reset_weight_and_record(self) -> None:
+    def _reset_weight_and_record(self, argument: Namespace) -> None:
         """Resets outputs from last experiment."""
-        path_utils.make_directory(self._argument.output_directory_path)
+        path_utils.make_directory(argument.output_directory_path)
         path_utils.reset_file(self._weight_file_path)
         path_utils.reset_file(self._record_file_path)
 
@@ -242,8 +245,8 @@ def train(argument: Namespace) -> None:
 
     while not delegate._is_finished():
         time_start = time.time()
-        validation_loss = validate_epoch(delegate)
-        train_loss = train_epoch(delegate)
+        validation_loss = validate_epoch(delegate, argument)
+        train_loss = train_epoch(delegate, argument)
         time_end = time.time()
 
         epoch_summary = {
@@ -259,7 +262,7 @@ def train(argument: Namespace) -> None:
 
         torch.cuda.empty_cache()
 
-def validate_epoch(delegate: TrainDelegate) -> float:
+def validate_epoch(delegate: TrainDelegate, argument: Namespace) -> float:
     """Validates the model within an epoch.
 
     Validates the model within an epoch with the following
@@ -271,7 +274,10 @@ def validate_epoch(delegate: TrainDelegate) -> float:
         delegate:
             A TrainDelegate that contains all components
             required in model training.
-    
+        argument:
+            A argparse.Namespace that contains arguments
+            directly from the terminal. 
+
     Returns:
         A float that represents the validation loss across
         all batches at the current epoch.
@@ -282,11 +288,10 @@ def validate_epoch(delegate: TrainDelegate) -> float:
         delegate._model.eval()
 
         for input, label in delegate._validation_data_loader:
-            input = pre_process_input(input, delegate._argument)
-            label = pre_process_label(label, delegate._argument)
+            input = pre_process_input(input, argument)
+            label = pre_process_label(label, argument)
 
-            batch_extractor = BatchExtractor(
-                input, label, delegate._argument.batch_size)
+            batch_extractor = BatchExtractor(input, label, argument.batch_size)
             for input_batch, label_batch in batch_extractor:
                 validate_batch(
                     input_batch, label_batch, delegate, batch_loss_accumulator)
@@ -332,7 +337,7 @@ def validate_batch(
     batch_loss = delegate._loss_function(prediction_batch, label_batch)
     batch_loss_accumulator.accumulate_batch_loss(batch_loss.item())
 
-def train_epoch(delegate: TrainDelegate) -> float:
+def train_epoch(delegate: TrainDelegate, argument: Namespace) -> float:
     """Trains the model within an epoch.
 
     Trains the model within an epoch with the following
@@ -344,6 +349,9 @@ def train_epoch(delegate: TrainDelegate) -> float:
         delegate:
             A TrainDelegate that contains all components
             required in model training.
+        argument:
+            A argparse.Namespace that contains arguments
+            directly from the terminal.
 
     Returns:
         A float that represents the train loss across all
@@ -353,11 +361,10 @@ def train_epoch(delegate: TrainDelegate) -> float:
 
     delegate._model.train()
     for input, label in delegate._train_data_loader:
-        input = pre_process_input(input, delegate._argument)
-        label = pre_process_label(label, delegate._argument)
+        input = pre_process_input(input, argument)
+        label = pre_process_label(label, argument)
 
-        batch_extractor = BatchExtractor(
-            input, label, delegate._argument.batch_size)
+        batch_extractor = BatchExtractor(input, label, argument.batch_size)
         for input_batch, label_batch in batch_extractor:
             train_batch(
                 input_batch, label_batch, delegate, batch_loss_accumulator)
