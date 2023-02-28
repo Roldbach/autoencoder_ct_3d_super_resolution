@@ -1,8 +1,10 @@
 """Helper of model testing.
 
 This module contains class and functions that can
-facilitate the model testing.
+facilitate the model testing. The main function test() is
+compatible with arguments from the terminal. 
 """
+from argparse import Namespace
 from collections import defaultdict
 
 import numpy as np
@@ -29,25 +31,14 @@ class TestDelegate:
     A delegate that is specifically designed for model
     testing. It contains all components required and 
     some convenient functions that fascilitate testing
-    experiments.
+    experiments. Arguments are directly obtained from the
+    terminal.
     """
 
-    def __init__(
-        self,
-        model_name: str,
-        upsample_name: str,
-        weight_file_path: str,
-        scale_factor: int,
-        window: tuple[float|None, float|None],
-    ) -> None:
+    def __init__(self, argument: Namespace) -> None:
         """Initialises TestDelegate."""
-        self._scale_factor = scale_factor
-        self._window = window
-        self._upsample_name = upsample_name
-
         self._test_data_loader = self._construct_test_data_loader()
-        self._model = self._construct_model(model_name)
-        self._model = io_utils.read_weight(weight_file_path, self._model)
+        self._model = self._construct_model(argument)
     
     def _construct_test_data_loader(self) -> DataLoader:
         """Constructs a dataloader to load test data."""
@@ -58,24 +49,19 @@ class TestDelegate:
             num_workers = 4,
         )
 
-    def _construct_model(self, model_name: str) -> nn.Module:
+    def _construct_model(self, argument: Namespace) -> nn.Module:
         """Constructs a model used in the experiment.
 
         Constructs a model based on the given model name.
-        The model is moved to the test device and also
-        coverted to the data parallelism if multiple GPUs are
-        available.
+        The model is moved to the test device and converted
+        to the data parallelism if multiple GPUs are
+        available. Model weights are also loaded.
 
         Args:
-            model_name:
-                A str that specifies the name of the model.    
-            device:
-                A torch.device that specifies the device used
-                in the experiment.
-            device_id:
-                A tuple[int, ...] | None that specifies indices
-                of all GPUs if multiple GPUs are available.
-            
+            argument:
+                A argparse.Namespace that contains arguments
+                directly from the terminal.
+
         Returns:
             A torch.nn.Module that specifies the corresponding
             architecture of the model.
@@ -86,7 +72,7 @@ class TestDelegate:
         device = device_configuration.TEST_DEVICE
         device_id = device_configuration.TEST_DEVICE_ID
 
-        match model_name:
+        match argument.model_name:
             case 'PlainCNN':
                 model = PlainCNN().to(device)
             case 'AE_Maxpool':
@@ -96,10 +82,13 @@ class TestDelegate:
             case 'UNet':
                 model = UNet().to(device)
             case _:
-                raise ValueError(f'Can not find model: {model_name}')
+                raise ValueError(
+                    f'Can not find model: {argument.model_name}')
 
         if device_id is not None:
             model = nn.parallel.DataParallel(model, device_id)
+        
+        model = io_utils.read_weight(argument.weight_file_path, model)
         
         return model
 
@@ -110,7 +99,7 @@ def plotImage(image, name, path):
     plt.imshow(image,cmap=plt.cm.gray)
     figure.savefig(path+"/"+name+".png")
 
-def test(delegate: TestDelegate) -> None:
+def test(argument: Namespace) -> None:
     """Tests the model using given experiment settings.
 
     Tests the model using given experiment settings by the
@@ -125,10 +114,11 @@ def test(delegate: TestDelegate) -> None:
             evaluation results in the terminal.
         
     Args:
-        delegate:
-            A TestDelegate that contains all components
-            required in model testing.
+        argument:
+            A argparse.Namespace that contains arguments
+            directly from the terminal
     """
+    delegate = TestDelegate(argument)
     evaluation_metric_all = ('PSNR', 'SSIM', "RMSE")
     candidate_evaluation_result_map = defaultdict(list)
     reference_evaluation_result_map = defaultdict(list)
@@ -137,8 +127,8 @@ def test(delegate: TestDelegate) -> None:
     count = 0
     delegate._model.eval()
     for input, label in delegate._test_data_loader:
-        input = pre_process_input(input, delegate)
-        label = pre_process_label(label, delegate)
+        input = pre_process_input(input, argument)
+        label = pre_process_label(label, argument)
 
         prediction = delegate._model(
             input.to(device_configuration.TEST_DEVICE))
@@ -162,7 +152,7 @@ def test(delegate: TestDelegate) -> None:
         candidate_evaluation_result_map, reference_evaluation_result_map)
 
 def pre_process_input(
-    input: torch.Tensor, delegate: TestDelegate) -> torch.Tensor:
+    input: torch.Tensor, argument: Namespace) -> torch.Tensor:
     """Pre-processes input.
 
     Pre-processes input before model testing with the following steps:
@@ -179,25 +169,25 @@ def pre_process_input(
         input:
             A torch.Tensor that contains pixel values of
             the input.
-        delegate:
-            A TestDelegate that contains all components
-            required in model testing.   
+        argument:
+            A argparse.Namespace that contains arguments
+            directly from the terminal.  
 
     Returns:
         A torch.Tensor that contains pixel values of
         the pre-processed input.
     """
-    input = image_utils.normalise_pixel(input, *delegate._window)
-    input = image_utils.truncate_image(input, delegate._scale_factor)
+    input = image_utils.normalise_pixel(input, *argument.window)
+    input = image_utils.truncate_image(input, argument.scale_factor)
     input = image_utils.downsample_image_x_y_axis(input)
-    input = image_utils.downsample_image_z_axis(input, delegate._scale_factor)
+    input = image_utils.downsample_image_z_axis(input, argument.scale_factor)
     input = image_utils.upsample_image_z_axis(
-        input, delegate._scale_factor, delegate._upsample_name)
+        input, argument.scale_factor, argument.upsample_name)
 
     return input
 
 def pre_process_label(
-    label: torch.Tensor, delegate: TestDelegate) -> torch.Tensor:
+    label: torch.Tensor, argument: Namespace) -> torch.Tensor:
     """Pre-processes label.
 
     Pre-processes label before model testing with the following steps:
@@ -207,22 +197,19 @@ def pre_process_label(
         (3) Downsamples the input in x, y axes by x2.
     
     Args:
-        input:
+        label:
             A torch.Tensor that contains pixel values of
-            the input.
-        window:
-            A tuple[float|None, float|None] that specifies
-            the range of pixel values interested.
-        scale_factor:
-            An int that specifies the scale factor of
-            downsampling/upsampling operations in z axis
+            the label.
+        argument:
+            A argparse.Namespace that contains arguments
+            directly from the terminal.
 
     Returns:
         A torch.Tensor that contains pixel values of
         the pre-processed label.
     """
-    label = image_utils.normalise_pixel(label, *delegate._window)
-    label = image_utils.truncate_image(label, delegate._scale_factor)
+    label = image_utils.normalise_pixel(label, *argument.window)
+    label = image_utils.truncate_image(label, argument.scale_factor)
     label = image_utils.downsample_image_x_y_axis(label)
 
     return label
