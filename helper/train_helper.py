@@ -149,9 +149,9 @@ class TrainDelegate:
         path_utils.reset_file(self._weight_file_path)
         path_utils.reset_file(self._record_file_path)
 
-    def _is_finished(self) -> bool:
+    def _is_finished(self, epoch: int) -> bool:
         """Returns whether the training is finished or not."""
-        return len(self._record) >= self._epoch
+        return len(self._record) >= epoch
 
 class BatchExtractor:
     """An iterator for efficient batch extraction.
@@ -244,7 +244,7 @@ def train(argument: Namespace) -> None:
     """
     delegate = TrainDelegate(argument)
 
-    while not delegate._is_finished():
+    while not delegate._is_finished(argument.epoch):
         time_start = time.time()
         validation_loss = validate_epoch(delegate, argument)
         train_loss = train_epoch(delegate, argument)
