@@ -1,7 +1,7 @@
 """Path-related configurations.
 
-This module contains configurations about the paths used
-in the experiment. 
+This module contains configurations about paths used in the
+experiment. 
 """
 
 
