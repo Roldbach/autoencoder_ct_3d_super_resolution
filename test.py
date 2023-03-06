@@ -1,19 +1,4 @@
 """Script for model testing.
-
-This is the script used for model training. To test a
-model, please specify the following experiment settings:
-    (1) model_name: str, one of PlainCNN/AE_Maxpool/AE_Conv/
-        UNet.
-    (2) upsample_name: str, one of trilinear_interpolation/
-        same_insertion.
-    (3) weight_file_path: str, the file that stores
-        model weights.
-    (4) scale_factor: int, the scale factor of downsampling
-        /upsampling in the z-axis.
-    (5) window: tuple[float|None, float|None], the range
-        of HU values interested.
-
-This script can be interacted directly from the terminal.
 """
 import argparse
 import sys
@@ -47,6 +32,12 @@ def parse_argument() -> argparse.Namespace:
         type = str,
         required = True,
         help = 'The file that stores model weights',
+    )
+    parser.add_argument(
+        '--scale_factor',
+        type = int,
+        required = True,
+        help = 'The scale factor of downsampling/upsampling in the z-axis',
     )
     parser.add_argument(
         '--window',
