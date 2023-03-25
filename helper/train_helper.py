@@ -13,9 +13,9 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from configuration import device_configuration
-from dataset.AapmMayoDataset import AapmMayoDataset
-from model.Autoencoder import Autoencoder_Conv
-from model.Autoencoder import Autoencoder_Maxpool
+from dataset.template_dataset import TemplateDataset
+from model.Autoencoder import AutoencoderConv
+from model.Autoencoder import AutoencoderMaxpool
 from model.PlainCNN import PlainCNN
 from model.UNet import UNet
 from utils import image_utils
@@ -65,7 +65,7 @@ class TrainDelegate:
     def _construct_train_data_loader(self) -> DataLoader:
         """Constructs a dataloader to load train data."""
         return DataLoader(
-            dataset = AapmMayoDataset('train'),
+            dataset = TemplateDataset('train'),
             batch_size = 1,
             shuffle = True,
             num_workers = 4,
@@ -74,7 +74,7 @@ class TrainDelegate:
     def _construct_validation_data_loader(self) -> DataLoader:
         """Constructs a dataloader to load validation data."""
         return DataLoader(
-            dataset = AapmMayoDataset('validation'),
+            dataset = TemplateDataset('validation'),
             batch_size = 1,
             shuffle = True,
             num_workers = 4,
@@ -107,9 +107,9 @@ class TrainDelegate:
             case 'PlainCNN':
                 model = PlainCNN().to(device)
             case 'AE_Maxpool':
-                model = Autoencoder_Maxpool().to(device)
+                model = AutoencoderMaxpool().to(device)
             case 'AE_Conv':
-                model = Autoencoder_Conv().to(device)
+                model = AutoencoderConv().to(device)
             case 'UNet':
                 model = UNet().to(device)
             case _:
@@ -228,14 +228,14 @@ class BatchLossAccumulator:
 def train(argument: Namespace) -> None:
     """Trains the model using given experiment settings.
 
-    Trains the model using given experiment settings by the
-    following steps:
+    Trains the model using the given experiment
+    configuration by the following steps:
         (1) Validates the model within an epoch.
         (2) Trains the model within an epoch.
-        (3) Append summary of the current epoch to record.
-        (3) Writes current weights and records.
-        (4) Report epoch summary to the terminal.
-        (5) Repeats step 1~4 until finishing.
+        (3) Append the epoch result to record.
+        (4) Writes current weights and records.
+        (5) Reports the epoch result to the terminal.
+        (6) Repeats step 1~4 until finishing.
     
     Args:
         argument:
