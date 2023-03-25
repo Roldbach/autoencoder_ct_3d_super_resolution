@@ -38,6 +38,7 @@ class UNet(nn.Module):
             'level_1': nn.Sequential(
                 DoubleConv3DBlock(64, 32),
                 nn.Conv3d(32, 1, kernel_size=3, stride=1, padding='same'),
+                nn.LeakyReLU(0.1, True),
             ),
         })
     
