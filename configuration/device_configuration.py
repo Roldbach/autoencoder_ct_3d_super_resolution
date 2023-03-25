@@ -2,7 +2,7 @@
 
 This module contains configurations about the devices used
 in the experiment. All devices are torch-based and multiple
-GPUs could also be configured if available.
+GPUs could be configured if available.
 """
 import torch
 
