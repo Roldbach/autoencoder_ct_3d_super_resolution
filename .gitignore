@@ -132,6 +132,5 @@ dmypy.json
 manual_test.py
 record/
 temp/
-weight/
 dataset/AapmMayoDataset.py
 dataset/loading_file.txt
