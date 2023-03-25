@@ -13,16 +13,14 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from configuration import device_configuration
-from dataset.AapmMayoDataset import AapmMayoDataset
-from model.Autoencoder import Autoencoder_Conv
-from model.Autoencoder import Autoencoder_Maxpool
+from dataset.template_dataset import TemplateDataset
+from model.Autoencoder import AutoencoderConv
+from model.Autoencoder import AutoencoderMaxpool
 from model.PlainCNN import PlainCNN
 from model.UNet import UNet
 from utils import evaluation_utils
 from utils import image_utils
 from utils import io_utils
-
-import matplotlib.pyplot as plt
 
 
 class TestDelegate:
@@ -43,7 +41,7 @@ class TestDelegate:
     def _construct_test_data_loader(self) -> DataLoader:
         """Constructs a dataloader to load test data."""
         return DataLoader(
-            dataset = AapmMayoDataset('test'),
+            dataset = TemplateDataset('test'),
             batch_size = 1,
             shuffle = False,
             num_workers = 4,
@@ -76,9 +74,9 @@ class TestDelegate:
             case 'PlainCNN':
                 model = PlainCNN().to(device)
             case 'AE_Maxpool':
-                model = Autoencoder_Maxpool().to(device)
+                model = AutoencoderMaxpool().to(device)
             case 'AE_Conv':
-                model = Autoencoder_Conv().to(device)
+                model = AutoencoderConv().to(device)
             case 'UNet':
                 model = UNet().to(device)
             case _:
@@ -91,13 +89,6 @@ class TestDelegate:
         model = io_utils.read_weight(argument.weight_file_path, model)
         
         return model
-
-def plotImage(image, name, path):
-    figure=plt.figure(dpi=300)
-    plt.grid(False)
-    plt.axis("off")
-    plt.imshow(image,cmap=plt.cm.gray)
-    figure.savefig(path+"/"+name+".png")
 
 def test(argument: Namespace) -> None:
     """Tests the model using given experiment settings.
@@ -123,8 +114,6 @@ def test(argument: Namespace) -> None:
     candidate_evaluation_result_map = defaultdict(list)
     reference_evaluation_result_map = defaultdict(list)
 
-    # Clean this
-    count = 0
     delegate._model.eval()
     for input, label in delegate._test_data_loader:
         input = pre_process_input(input, argument)
@@ -142,11 +131,6 @@ def test(argument: Namespace) -> None:
                 evaluate(prediction, label, evaluation_metric))
             reference_evaluation_result_map[evaluation_metric].append(
                 evaluate(input, label, evaluation_metric))
-        
-        if count == 0:
-            plotImage(input[:, :, 100], f'input_{count}', '.')
-            plotImage(prediction[:, :, 100], f'prediction_{count}', '.')
-            plotImage(label[:, :, 100], f'label_{count}', '.')
     
     report_evaluation_result(
         candidate_evaluation_result_map, reference_evaluation_result_map)
@@ -178,7 +162,7 @@ def pre_process_input(
         the pre-processed input.
     """
     input = image_utils.normalise_pixel(input, *argument.window)
-    input = image_utils.truncate_image(input, argument.scale_factor)
+    input = image_utils.truncate_image(input, 8)
     input = image_utils.downsample_image_x_y_axis(input)
     input = image_utils.downsample_image_z_axis(input, argument.scale_factor)
     input = image_utils.upsample_image_z_axis(
@@ -209,7 +193,7 @@ def pre_process_label(
         the pre-processed label.
     """
     label = image_utils.normalise_pixel(label, *argument.window)
-    label = image_utils.truncate_image(label, argument.scale_factor)
+    label = image_utils.truncate_image(label, 8)
     label = image_utils.downsample_image_x_y_axis(label)
 
     return label
