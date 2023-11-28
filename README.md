@@ -32,7 +32,7 @@
 ## Description
 This repository contains the official PyTorch implementation of [Is Autoencoder
 Truly Applicable for 3D CT Super-Resolution?](https://ieeexplore.ieee.org/document/10230786)
-We have provided our full codes and pre-trained models here.
+We have provided our full code and pre-trained models here.
 
 
 ## Get Started
